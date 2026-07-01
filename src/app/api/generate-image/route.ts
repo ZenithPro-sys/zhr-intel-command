@@ -5,50 +5,17 @@ export async function POST(req: NextRequest) {
     const { prompt } = await req.json()
     if (!prompt) return NextResponse.json({ error: 'Prompt required' }, { status: 400 })
 
-    const falKey = process.env.FAL_API_KEY
-    if (!falKey) return NextResponse.json({ error: 'FAL_API_KEY not configured' }, { status: 500 })
+    // Pollinations.ai — 100% free, no API key, no signup required
+    const fullPrompt = encodeURIComponent(
+      `Professional branded LinkedIn Instagram graphic. Obsidian black background. Neon blue glowing accents. Silver chrome typography. Zenith Intelligence premium brand. ${prompt}`
+    )
 
-    // Use fal.ai SDXL endpoint
-    const res = await fetch('https://fal.run/fal-ai/fast-sdxl', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: `Professional branded LinkedIn/Instagram graphic. Obsidian black background #0B0C10. Neon blue #00D9FF accents. Silver chrome text. Zenith Intelligence premium brand aesthetic. ${prompt}`,
-        negative_prompt: 'blurry, low quality, watermark, text errors, unprofessional',
-        image_size: 'square_hd',
-        num_images: 1,
-        num_inference_steps: 25,
-        guidance_scale: 7.5,
-      })
-    })
+    const imageUrl = `https://image.pollinations.ai/prompt/${fullPrompt}?width=1024&height=1024&nologo=true&seed=${Date.now()}`
 
-    const data = await res.json()
-    const imageUrl = data.images?.[0]?.url
-
-    if (!imageUrl) {
-      // Fallback: try flux schnell
-      const res2 = await fetch('https://fal.run/fal-ai/flux/schnell', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${falKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: `Professional branded graphic. Dark obsidian background. Neon blue accents. ${prompt}`,
-          image_size: 'square_hd',
-          num_images: 1,
-          num_inference_steps: 4,
-        })
-      })
-      const data2 = await res2.json()
-      const fallbackUrl = data2.images?.[0]?.url
-      if (!fallbackUrl) {
-        return NextResponse.json({ error: 'Image generation failed', detail: data2 }, { status: 500 })
-      }
-      return NextResponse.json({ imageUrl: fallbackUrl })
+    // Verify the image is reachable
+    const check = await fetch(imageUrl, { method: 'HEAD' })
+    if (!check.ok) {
+      return NextResponse.json({ error: 'Image generation failed' }, { status: 500 })
     }
 
     return NextResponse.json({ imageUrl })
